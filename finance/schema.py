@@ -38,19 +38,17 @@ class MacroAnalystSchema(BaseModel):
         description= "Data source for the respective data point"
     )
     
-    insight : str = Field (
-        description = "The daily insight on what has happened"
+    pitch : str = Field (
+        description = "The macro investment pitch on what is a good trade right now"
+    )
+    instructions : str = Field (
+        description = "Provide instructions to sub-agent to perform further research"
     )
 
-class EquityResearchAnalystSchema(BaseModel):
+class SectorAnalystSchema(BaseModel):
     """Output Schema for Equity Research Analyst"""
 
-    ticker: str = Field(
-        description="Stock ticker symbol (e.g., AAPL, MSFT)"
-    )
-    company_name: str = Field(
-        description="Full company name"
-    )
+    
     sector: str = Field(
         description="Industry sector (e.g., Technology, Healthcare)"
     )
@@ -60,6 +58,26 @@ class EquityResearchAnalystSchema(BaseModel):
     price_target: float = Field(
         description="Target price for the stock"
     )
-    summary: str = Field(
-        description="Summary of the analyst's view and key drivers"
+    research: str = Field(
+        description="Research on the specific sector"
+    )
+    
+
+class QuantAnalystSchema(BaseModel):
+    """Output Schema for Quant Analyst"""
+
+    strategy_name: str = Field(
+        description="Name of the quantitative strategy"
+    )
+    universe: str = Field(
+        description="Asset universe (e.g., S&P 500, global equities)"
+    )
+    signal: str = Field(
+        description="Quantitative signal or factor (e.g., momentum, value)"
+    )
+    performance: dict = Field(
+        description="Performance metrics (e.g., {'return': 0.12, 'volatility': 0.08, 'sharpe': 1.5})"
+    )
+    insight: str = Field(
+        description="Key insight or interpretation of the results"
     )

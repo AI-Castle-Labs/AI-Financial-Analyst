@@ -3,11 +3,12 @@ from langgraph.graph import StateGraph, START, END
 from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import StructuredTool
-from prompt import system_source_prompt,system_macro_prompt,system_equity_analyst
-from schema import Classification_outputSchema,MacroAnalystSchema
+from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt
+from schema import Classification_outputSchema,MacroAnalystSchema,SectorAnalystSchema
 #from tools import FRED_Chart
 import os
 from dotenv import load_dotenv
+from state import AgentState
 load_dotenv()
 
 api_key = os.getenv("OPENAI_API_KEY")
@@ -30,7 +31,7 @@ def search_agent(prompt):
     print(FRED_Chart(result.name_point,result.data_point))
 
 
-def macro_analyst(prompt):
+def macro_analyst_agent():
     llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
 
 
@@ -38,20 +39,48 @@ def macro_analyst(prompt):
     
     result = llm.invoke([
         {'role':'system','content' : system_macro_prompt},
-        {'role':'user', 'content': f"Provide macro economic analysis for {prompt}"}
+        {'role':'user', 'content': f"Provide an macro investment pitch"}
     ])
-    return result.insight
+    return result
 
-def equity_analyst(prompt):
-    lllm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+
+def sector_analyst_agent(prompt):
+    llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+
+    llm = llm.with_structured_output(SectorAnalystSchema)
 
     result = llm.invoke([
-        {'role':'system','content' : system_equity_analyst},
-        {'role':'user','content' : f"Provide equity research analysis for {prompt}"}
+        {'role':'system','content' : system_sector_research_analyst},
+        {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
     
     ])
+    return result
+
+print(sector_analyst_agent(prompt = "Investigate the performance of the US manufacturing and services sectors compared to the Eurozone, " \
+"focusing on PMI data and recent earnings reports to gauge economic momentum."))
+
+def central_bank_agent(prompt):
+    llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key) 
+
+    system_prompt = system_central_bank_prompt
+
+    result = llm.invoke([
+        {'role': 'system', 'content': system_prompt},
+        {'role': 'user', 'content': f"Provide analysis as a central bank analyst for {prompt}"}
+    ])
+    return result
 
 
 
-if __name__ == "__main__":
-    macro_analyst("C&I Loans at Small Domestically Chartered Banks")
+
+workflow = StateGraph(AgentState)
+
+
+workflow.add_node("macro_analyst", macro_analyst_agent)
+workflow.add_node("sector_analyst",sector_analyst_agent)
+workflow.add_node("central_bank_analyst", central_bank_agent)
+
+
+
+
+
