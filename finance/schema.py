@@ -30,3 +30,36 @@ class Classification_outputSchema(BaseModel):
 
     )
 
+
+class MacroAnalystSchema(BaseModel):
+    """Output Schema for Macro Analyst"""
+
+    datasource : str = Field (
+        description= "Data source for the respective data point"
+    )
+    
+    insight : str = Field (
+        description = "The daily insight on what has happened"
+    )
+
+class EquityResearchAnalystSchema(BaseModel):
+    """Output Schema for Equity Research Analyst"""
+
+    ticker: str = Field(
+        description="Stock ticker symbol (e.g., AAPL, MSFT)"
+    )
+    company_name: str = Field(
+        description="Full company name"
+    )
+    sector: str = Field(
+        description="Industry sector (e.g., Technology, Healthcare)"
+    )
+    rating: str = Field(
+        description="Analyst rating (e.g., Buy, Hold, Sell)"
+    )
+    price_target: float = Field(
+        description="Target price for the stock"
+    )
+    summary: str = Field(
+        description="Summary of the analyst's view and key drivers"
+    )

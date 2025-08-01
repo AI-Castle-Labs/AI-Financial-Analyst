@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import sdmx
 import pandas as pd
 
+"""
 
 def FRED_Chart(name_point, data_point):
 
-    print("name point",name_point)
-    print("data point",data_point)
+
     fred = Fred(api_key = '53a8c45b1e8169b89b2070221bf0773d')
 
     # Step 2: Get GDP data
@@ -19,25 +19,6 @@ def FRED_Chart(name_point, data_point):
     plt.ylabel("Billions of Dollars")
     plt.grid(True)
     plt.show()
-
-
-
-
-ecb = sdmx.Client("ECB")
-
-ecb_via_proxy = sdmx.Client(
-    "ECB",
-    proxies={"http": "http://1.2.3.4:5678"}
-)
-
-
-# Initialize client
-ecb = sdmx.Client("ECB")
-
-# Get list of all dataflows
-flow_msg = ecb.dataflow()
-dataflows = sdmx.to_pandas(flow_msg.dataflow)
-print(dataflows.head(20))  # show top 20 flows
 
 
 
@@ -73,7 +54,6 @@ header = {'Authorization': f"{token['token_type']} {token['access_token']}"}
 
 IMF_DATA = sdmx.Client('IMF_DATA')
 
-data_msg = IMF_DATA.data('BLS', key='USA+CAN.CPI.IX.M', params={'startPeriod': 2018}, headers=header)
 
  
 
@@ -81,4 +61,4 @@ data_msg = IMF_DATA.data('BLS', key='USA+CAN.CPI.IX.M', params={'startPeriod': 2
 
 cpi_df = sdmx.to_pandas(data_msg)
 
-print(cpi_df.head())
+"""
