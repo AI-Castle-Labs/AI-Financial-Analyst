@@ -44,6 +44,9 @@ class MacroAnalystSchema(BaseModel):
     instructions : str = Field (
         description = "Provide instructions to sub-agent to perform further research"
     )
+    created_agent_description : str = Field(
+        description = "For the newly created agent provide the information about it including description, task and other information"
+    )
 
 class SectorAnalystSchema(BaseModel):
     """Output Schema for Equity Research Analyst"""
@@ -61,7 +64,7 @@ class SectorAnalystSchema(BaseModel):
     research: str = Field(
         description="Research on the specific sector"
     )
-    
+
 
 class QuantAnalystSchema(BaseModel):
     """Output Schema for Quant Analyst"""
@@ -81,3 +84,27 @@ class QuantAnalystSchema(BaseModel):
     insight: str = Field(
         description="Key insight or interpretation of the results"
     )
+
+
+import tweepy
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+api_key = os.getenv("X_API_KEY")
+api_key_secret = os.getenv("X_API_KEY_SECRET")
+access_token = os.getenv("X_ACCESS_TOKEN")
+access_token_secret = os.getenv("X_ACCESS_TOKEN_SECRET")
+bearer_token = os.getenv("token")
+
+client = tweepy.Client(
+    bearer_token=bearer_token,
+    consumer_key=api_key,
+    consumer_secret=api_key_secret,
+    access_token=access_token,
+    access_token_secret=access_token_secret
+)
+
+# --- Post the tweet ---
+response = client.create_tweet(text="Hello world from RAG@UIUC 🚀")
+
