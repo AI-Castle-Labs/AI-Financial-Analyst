@@ -64,29 +64,37 @@ class DeepResearchAgent:
         
         State.agent_description  = result.created_agent_description
 
-        print(result)
+        return State
 
 
     def sector_analyst_agent(self,prompt = None ,State = None):
+        if (State is not None and State.prompt != None):
+            prompt = State.prompt
+        
+        else:
+            prompt = prompt
 
         llm = self.llm.with_structured_output(SectorAnalystSchema)
 
         prompt = State.prompt
 
-        result = self.llm.invoke([
+        result = llm.invoke([
             {'role':'system','content' : system_sector_research_analyst},
             {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
         
         ])
-        return result
+        State.sector_analyst_agent = result
+
+        return State
 
 
     def central_bank_agent(self,prompt = None, State = None):
-        llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = self.api_key) 
+
+        llm = self.llm.with_structured_output(SectorAnalystSchema)
 
         system_prompt = system_central_bank_prompt
 
-        result = self.llm.invoke([
+        result = llm.invoke([
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide analysis as a central bank analyst for {prompt}"}
         ])
@@ -105,7 +113,10 @@ class DeepResearchAgent:
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': "Provide FX research analysis on {prompt}"}
         ])
-        return result
+
+        State.fx_research_agent = result
+
+        return State
 
     def agent(self,prompt = None, State = None):
         if (State.prompt):
@@ -123,7 +134,7 @@ class DeepResearchAgent:
             {'role':'user', 'content': 'Provide analysis based on {prompt}'}
         ])
 
-        return result
+        return State
 
     def summarizer_agent(self,prompt = None, State = None):
         
@@ -143,7 +154,7 @@ class DeepResearchAgent:
             {'role':'sytem','content':system_prompt},
             {'role': 'user', 'content': 'Provide analysis based on {prompt}'}
         ])
-        return result
+        return State
         
     def create_pdf_report(self, results, filename = "investment_report"):
         pdf =  FPDF()
@@ -158,7 +169,7 @@ class DeepResearchAgent:
 
 
     
-    def run(self):
+    def run(self,prompt):
 
         workflow = StateGraph(AgentState)
         workflow.add_node("macro_analyst", self.macro_analyst_agent)
@@ -182,11 +193,11 @@ class DeepResearchAgent:
 
         # Compile and run the workflow
         app = workflow.compile()
-        result = app.invoke({"input": "Your initial prompt here"})
+        result = app.invoke({"input":prompt})
         print(result)
 
 
 
 
 deepsearch = DeepResearchAgent()
-deepsearch.macro_analyst_agent(prompt = "Conduct research on equity valuations across the US")
+deepsearch.run(prompt = "Conduct research on equity valuations across the US")
