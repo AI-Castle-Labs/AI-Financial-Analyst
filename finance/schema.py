@@ -5,7 +5,9 @@ import pandas as pd
 from langchain.chat_models import init_chat_model
 
 from pydantic import BaseModel, Field
+from typing import Dict,Any
 
+from typing_extensions import Annotated
 
 
 
@@ -50,8 +52,6 @@ class MacroAnalystSchema(BaseModel):
 
 class SectorAnalystSchema(BaseModel):
     """Output Schema for Equity Research Analyst"""
-
-    
     sector: str = Field(
         description="Industry sector (e.g., Technology, Healthcare)"
     )
@@ -85,5 +85,52 @@ class QuantAnalystSchema(BaseModel):
         description="Key insight or interpretation of the results"
     )
 
+class GeneralAgentSchema(BaseModel):
+    """Output Schema for General Agent"""
+
+    research: str = Field(
+        description= "The research done by the agent"
+    )
 
 
+
+class CentralBankSchema(BaseModel):
+    """Output Schema for Central Bank Agent"""
+
+    outlook : str = Field(
+        description = "Outlook for the respective sector"
+    )
+    research : str = Field(
+        description= "Research for the respective sector"
+    )
+    Source : str = Field(
+        description = "Source of the respective research"
+    )
+
+class PerformanceMetrics(BaseModel):
+    return_: float = Field(..., description="Portfolio return")
+    volatility: float = Field(..., description="Portfolio volatility")
+    sharpe: float = Field(..., description="Portfolio Sharpe ratio")
+
+    class Config:
+        extra = "forbid"  # This sets additionalProperties: false
+
+class PortfolioManagerSchema(BaseModel):
+    portfolio_summary: str = Field(
+        description="Summary of the current portfolio holdings and allocation"
+    )
+    performance: PerformanceMetrics = Field(
+        ..., description="Portfolio performance metrics"
+    )
+    risk_analysis: str = Field(
+        description="Analysis of portfolio risks and exposures"
+    )
+    recommendations: str = Field(
+        description="Portfolio manager's recommendations for changes or actions"
+    )
+    source: str = Field(
+        description="Source of the data or research used for the analysis"
+    )
+
+    class Config:
+        extra = "forbid"

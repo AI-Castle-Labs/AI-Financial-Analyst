@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 from langgraph.channels import LastValue
+from pydantic import BaseModel, Field
+from typing_extensions import Annotated
+from langgraph.channels import LastValue
 
-
-
-class AgentState:
+class AgentState(BaseModel):
 
     macro_thesis: str | None  = None
     
@@ -19,11 +20,13 @@ class AgentState:
     fx_research_agent : Optional[list[str]] = None
     agent : Optional[list[str]] = None
 
-    agent_description : str = None
+    agent_description: Annotated[Any, LastValue] = None
 
 
 
-    prompt : str = None
+    prompt: Optional[str] = None
 
+
+    result : Optional[list[str]] = None
 
     

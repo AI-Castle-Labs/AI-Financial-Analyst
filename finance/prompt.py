@@ -233,8 +233,13 @@ macro-agent - {macro_agent}
 
 fx-agent - {fx_agent}
 
+sector-agent = {sector_agent}
+
 agent - {agent}
 
+central bank agent - {central_bank_agent}
 
+<Output>
+The output of the agent should provide a portfolio_summary, performance, risk_analysis, recommendations, source of your research
 
 """

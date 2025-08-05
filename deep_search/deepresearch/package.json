@@ -1,0 +1,15 @@
+{
+  "name": "deepresearch",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "ts-node websearch.ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
