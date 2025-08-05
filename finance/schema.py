@@ -92,6 +92,12 @@ class GeneralAgentSchema(BaseModel):
         description= "The research done by the agent"
     )
 
+class FXAgentSchema(BaseModel):
+    """Output Schema for FX Agent"""
+
+    research : str = Field(
+        description = "Key research and insights on FX"
+    )
 
 
 class CentralBankSchema(BaseModel):

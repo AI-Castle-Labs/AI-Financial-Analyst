@@ -18,6 +18,7 @@ class AgentState(BaseModel):
     macro_analyst_agent : Optional[list[str]] = None
     sector_analyst_agent : Optional[list[str]] = None
     fx_research_agent : Optional[list[str]] = None
+    portfolio_manager_agent : Optional[list[str]] = None
     agent : Optional[list[str]] = None
 
     agent_description: Annotated[Any, LastValue] = None

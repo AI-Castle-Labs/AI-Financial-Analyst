@@ -4,7 +4,7 @@ from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import StructuredTool
 from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt,system_fx_research_prompt,system_agent_prompt,system_portfolio_manager_prompt
-from schema import Classification_outputSchema,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema
+from schema import Classification_outputSchema,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema,FXAgentSchema,CentralBankSchema
 #from tools import FRED_Chart
 import os
 from dotenv import load_dotenv
@@ -78,14 +78,14 @@ class DeepResearchAgent:
             {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
         
         ])
-        State.sector_analyst_agent = result
+        State.sector_analyst_agent = [result.research]
 
         return State
 
 
     def central_bank_agent(self,State):
 
-        llm = self.llm.with_structured_output(SectorAnalystSchema)
+        llm = self.llm.with_structured_output(CentralBankSchema)
 
         system_prompt = system_central_bank_prompt
 
@@ -95,28 +95,30 @@ class DeepResearchAgent:
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide analysis as a central bank analyst for {prompt}"}
         ])
+        State.central_bank_agent = [result.research]
 
         return State
 
-    def fx_research_agent(self, State = None):
+    def fx_research_agent(self, State):
         if (State is not None and State.prompt != None):
             prompt = State.prompt
         else:
             prompt = prompt
 
 
+        llm = self.llm.with_structured_output(FXAgentSchema)
         system_prompt =  system_fx_research_prompt
 
-        result = self.llm.invoke([
+        result = llm.invoke([
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide FX research analysis on {prompt}"}
         ])
 
-        State.fx_research_agent = result
+        State.fx_research_agent = [result.research]
 
         return State
 
-    def agent(self,State = None):
+    def agent(self,State):
         if (State.prompt):
             prompt = State.prompt
         else:
@@ -125,18 +127,21 @@ class DeepResearchAgent:
 
         llm = self.llm.with_structured_output(GeneralAgentSchema)
         system_prompt = system_agent_prompt.format(
-            role = State.agent_description
+            role = State.agent_description,
+            context = State.prompt
         )
 
         result = llm.invoke([
             {'role':'system', 'content': system_prompt},
             {'role':'user', 'content': f'Provide analysis based on {prompt}'}
         ])
-        State.agent = result.research
+        State.agent = [result.research]
+
+        print("This is the state", State)
 
         return State
 
-    def portfolio_manager(self,State = None):
+    def portfolio_manager(self,State):
         
         if State is not None and hasattr(State, "prompt") and State.prompt is not None:
             prompt = State.prompt
@@ -156,8 +161,7 @@ class DeepResearchAgent:
             {'role':'system','content':system_prompt},
             {'role': 'user', 'content': f'Provide analysis based on {prompt}'}
         ])
-        State.result
-
+        State.portfolio_manager_agent = [result.portfolio_summary]
         return State
         
     def create_pdf_report(self, results, filename="investment_report.pdf"):
@@ -182,11 +186,16 @@ class DeepResearchAgent:
         workflow.add_node("central_bank_analyst", self.central_bank_agent)
         workflow.add_node("fx_research_analyst", self.fx_research_agent)
         workflow.add_node("portfolio_manager", self.portfolio_manager)
-        # Add edges
+        workflow.add_node("agent", self.agent)
+        # Edges
         workflow.add_edge(START, "macro_analyst")
-        workflow.add_edge("sector_analyst", "portfolio_manager")
-        workflow.add_edge("central_bank_analyst", "portfolio_manager")
-        workflow.add_edge("fx_research_analyst", "portfolio_manager")
+        workflow.add_edge("macro_analyst","sector_analyst")
+        workflow.add_edge("sector_analyst", "central_bank_analyst")
+        workflow.add_edge("central_bank_analyst", "fx_research_analyst")
+        workflow.add_edge("fx_research_analyst", "agent")
+        workflow.add_edge("agent","portfolio_manager")
+
+        workflow.add_edge("portfolio_manager", END)
         # Compile and run the workflow
         app = workflow.compile()
         result = app.invoke({"input": prompt})
@@ -198,7 +207,6 @@ class DeepResearchAgent:
         if hasattr(result, 'fx_research_analyst'): results['FX Research Analyst'] = getattr(result, 'fx_research_analyst')
         if hasattr(result, 'portfolio_manager'): results['Portfolio Manager'] = getattr(result, 'portfolio_manager')
         results['Portfolio Manager'] = result
-        print("This is the results", results)
         self.create_pdf_report(results)
 
 
