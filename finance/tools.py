@@ -1,29 +1,102 @@
-from fredapi import Fred
-import matplotlib.pyplot as plt
-import sdmx
-import pandas as pd
+import anthropic
+import logging
+import time
+from typing import Dict, Any, List
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
-"""
+def chart_agent(self,data_point):
 
-def FRED_Chart(name_point, data_point):
+        llm = self.llm.with_structured_output(Classification_outputSchema)
+        system_prompt = system_source_prompt
+
+        result = self.llm.invoke([
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': f"You are a macro analyst and you are analyzing {prompt} for a firm provide 2 data points, be very specific"}
+        ])
+        print(result)
+        output_structure = {'data_source':result.datasource, 'name_point':result.name_point, 'data_point': result.data_point}
+
+        print(FRED_Chart(result.name_point,result.data_point))
 
 
-    fred = Fred(api_key = '53a8c45b1e8169b89b2070221bf0773d')
 
-    # Step 2: Get GDP data
-    gdp = fred.get_series(data_point)
 
-    # Step 3: Plot it
-    gdp.plot(title= name_point)
-    plt.xlabel("Date")
-    plt.ylabel("Billions of Dollars")
-    plt.grid(True)
-    plt.show()
+def ask_sonar(title: str, description: str):
+    api_key = os.getenv("PERPLEXITY_API_KEY")
+
+    if not api_key:
+        print("⚠️ PERPLEXITY_API_KEY not found in environment variables")
+        # Provide a direct fallback for testing
+        api_key = "API-KEY"  # Replace with your key
+
+    print("Entering sonar")
+    model = "sonar-pro"  # Use online model for most current data
+    client = OpenAI(api_key=api_key, base_url="https://api.perplexity.ai")
+
+    system_prompt = f"""
+    <role>
+    You are an AI Investment Pitch Analyst responsible for findinging investment pitch for potential investments.
+    </role>
+
+    <context>
+    Find a potential investment idea for an AI Financial Anlayst to provide recommendations for
+    
+    Focus on finding:
+    1. Current Market Events
+    2. Valuations concerns for the asset class
+    3. Different Asset classes not just equities
+    4. Look internationally as well not just the US
+  
+
+    IMPORTANT: You MUST include proper markdown hyperlinks for your sources like [Source Name](https://example.com)
+    Don't just paste plain URLs - format them as proper clickable links using markdown.
+    
+    For each point, cite at least one specific source with a hyperlink.
+    Include at least 5 different sources total.
+    
+    Format your response as:
+    
+    ## 1)Potential Idea
+    [Research findings with hyperlinks]
+    [Citation Link]
+    
+    ## 2) Fundamentals
+    [Research findings with hyperlinks]
+    [Citation Link]
+    
+    
+    ## 3)Risk
+    [Research findings with hyperlinks]
+    [Citation Link]
+    
+    
+    ## 4) Investment Horizon
+    [Research findings with hyperlinks]
+    [Citation Link]
+    
+    ##5) Long/Short
+    [Research findings with hyperlinks]
+    [Citation Link]
+    
+    
+    </context>
+    """
+    
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Research this venture idea thoroughly: {title} - {description}"}
+        ]
+    )
+    print("perplexity search results", response.choices[0].message.content)
+    return response.choices[0].message.content
 
 
 
 import  sdmx
-
 from msal import PublicClientApplication
 
  
@@ -61,4 +134,7 @@ IMF_DATA = sdmx.Client('IMF_DATA')
 
 cpi_df = sdmx.to_pandas(data_msg)
 
-"""
+
+
+
+

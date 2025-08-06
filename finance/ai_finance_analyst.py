@@ -11,8 +11,25 @@ from dotenv import load_dotenv
 from state import AgentState
 import tweepy
 from fpdf import FPDF
+from tools import chart_agent
 
 load_dotenv()
+
+
+available_tools = [
+
+    StructuredTool.from_function(
+
+        name = "Chart_Tool", #Cannot have underscore because the LLM is particular on syntax
+
+        func = chart_agent,
+
+        description="Performs a BHP test on different zones"
+
+    ),
+
+
+]
 
 
 
@@ -29,19 +46,7 @@ class DeepResearchAgent:
         self.api_key = api_key
         self.report = {}
 
-    def chart_agent(self,prompt = None, State = None):
 
-        llm = self.llm.with_structured_output(Classification_outputSchema)
-        system_prompt = system_source_prompt
-
-        result = self.llm.invoke([
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': f"You are a macro analyst and you are analyzing {prompt} for a firm provide 2 data points, be very specific"}
-        ])
-        print(result)
-        output_structure = {'data_source':result.datasource, 'name_point':result.name_point, 'data_point': result.data_point}
-
-        print(FRED_Chart(result.name_point,result.data_point))
 
 
     def macro_analyst_agent(self,State,prompt = None):
@@ -206,7 +211,6 @@ class DeepResearchAgent:
         if hasattr(result, 'central_bank_analyst'): results['Central Bank Analyst'] = getattr(result, 'central_bank_analyst')
         if hasattr(result, 'fx_research_analyst'): results['FX Research Analyst'] = getattr(result, 'fx_research_analyst')
         if hasattr(result, 'portfolio_manager'): results['Portfolio Manager'] = getattr(result, 'portfolio_manager')
-        results['Portfolio Manager'] = result
         self.create_pdf_report(results)
 
 

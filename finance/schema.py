@@ -121,6 +121,17 @@ class PerformanceMetrics(BaseModel):
     class Config:
         extra = "forbid"  # This sets additionalProperties: false
 
+
+class BHPInput(BaseModel):
+    zone_1 : int
+    zone_2 : int 
+    zone_3 : int
+    comment: str = "start"
+
+
+
+
+
 class PortfolioManagerSchema(BaseModel):
     portfolio_summary: str = Field(
         description="Summary of the current portfolio holdings and allocation"
