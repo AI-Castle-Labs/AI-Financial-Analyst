@@ -114,6 +114,7 @@ class CentralBankSchema(BaseModel):
     )
 
 class PerformanceMetrics(BaseModel):
+    """Output Schema for Performance Metrics"""
     return_: float = Field(..., description="Portfolio return")
     volatility: float = Field(..., description="Portfolio volatility")
     sharpe: float = Field(..., description="Portfolio Sharpe ratio")
@@ -122,17 +123,15 @@ class PerformanceMetrics(BaseModel):
         extra = "forbid"  # This sets additionalProperties: false
 
 
-class BHPInput(BaseModel):
-    zone_1 : int
-    zone_2 : int 
-    zone_3 : int
-    comment: str = "start"
+class SonarInput(BaseModel):
+    ideas : str
 
 
 
 
 
 class PortfolioManagerSchema(BaseModel):
+    """Output Schema for Portfolio Manager"""
     portfolio_summary: str = Field(
         description="Summary of the current portfolio holdings and allocation"
     )
@@ -151,3 +150,18 @@ class PortfolioManagerSchema(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+class PlanningSchema(BaseModel):
+    """Output for Planning Agent for deepsearch"""
+    research_ideas : Dict[str,Dict[str,str]] = Field(
+        description = "The different reasoning ideas and their confidence score, the  key is name of the idea, and value is the idea and " \
+        "confidence score"
+    )
+
+
+class LLMScore(BaseModel):
+    """A LLM score comparing the worth of the research"""
+    research_ideas: Dict[str, float] = Field(
+        description= "The key consist of the idea name and value if the ranking"
+    )

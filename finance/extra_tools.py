@@ -22,8 +22,7 @@ def chart_agent(self,data_point):
 
 
 
-
-def ask_sonar(title: str, description: str):
+def ask_sonar(ideas):
     api_key = os.getenv("PERPLEXITY_API_KEY")
 
     if not api_key:
@@ -95,8 +94,13 @@ def ask_sonar(title: str, description: str):
     return response.choices[0].message.content
 
 
+def claude_search():
+     return 0
 
-import  sdmx
+
+
+"""
+import  sdmxreturbn 
 from msal import PublicClientApplication
 
  
@@ -136,5 +140,5 @@ cpi_df = sdmx.to_pandas(data_msg)
 
 
 
-
+"""
 

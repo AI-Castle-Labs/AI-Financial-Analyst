@@ -4,14 +4,14 @@ from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import StructuredTool
 from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt,system_fx_research_prompt,system_agent_prompt,system_portfolio_manager_prompt
-from schema import Classification_outputSchema,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema,FXAgentSchema,CentralBankSchema
+from schema import SonarInput,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema,FXAgentSchema,CentralBankSchema
 #from tools import FRED_Chart
 import os
 from dotenv import load_dotenv
 from state import AgentState
 import tweepy
 from fpdf import FPDF
-from tools import chart_agent
+from finance.extra_tools import chart_agent
 
 load_dotenv()
 
@@ -24,10 +24,11 @@ available_tools = [
 
         func = chart_agent,
 
+        schema = SonarInput,
+
         description="Performs a BHP test on different zones"
 
     ),
-
 
 ]
 
@@ -67,7 +68,7 @@ class DeepResearchAgent:
         return State
 
 
-    def sector_analyst_agent(self,State):
+    def sector_analyst_agent(self,State, prompt = None):
         if (State is not None and State.prompt != None):
             prompt = State.prompt
         
@@ -88,7 +89,7 @@ class DeepResearchAgent:
         return State
 
 
-    def central_bank_agent(self,State):
+    def central_bank_agent(self,State,prompt = None):
 
         llm = self.llm.with_structured_output(CentralBankSchema)
 
@@ -104,7 +105,7 @@ class DeepResearchAgent:
 
         return State
 
-    def fx_research_agent(self, State):
+    def fx_research_agent(self, State, prompt = None):
         if (State is not None and State.prompt != None):
             prompt = State.prompt
         else:
@@ -123,7 +124,7 @@ class DeepResearchAgent:
 
         return State
 
-    def agent(self,State):
+    def agent(self,State, prompt = None):
         if (State.prompt):
             prompt = State.prompt
         else:
