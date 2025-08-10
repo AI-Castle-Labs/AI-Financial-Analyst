@@ -5,6 +5,8 @@ from typing import Dict, Any, List
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from tavily import TavilyClient 
 
 def chart_agent(self,data_point):
 
@@ -92,7 +94,16 @@ def ask_sonar(ideas):
     )
     print("perplexity search results", response.choices[0].message.content)
     return response.choices[0].message.content
+import os
+from dotenv import load_dotenv
 
+def tavilly_search(query):
+    client = TavilyClient(os.getenv("tavily_api_key"))
+    response = client.search(
+        query=query
+    )
+print(response)
+    
 
 def claude_search():
      return 0
