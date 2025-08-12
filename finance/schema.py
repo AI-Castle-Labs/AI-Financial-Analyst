@@ -152,16 +152,16 @@ class PortfolioManagerSchema(BaseModel):
         extra = "forbid"
 
 
+
 class PlanningSchema(BaseModel):
     """Output for Planning Agent for deepsearch"""
-    research_ideas : Dict[str,Dict[str,str]] = Field(
-        description = "The different reasoning ideas and their confidence score, the  key is name of the idea, and value is the idea and " \
-        "confidence score"
+    research_ideas: Dict[str,str]= Field(...,
+        Description="Different investment research ideas. Key = idea name, Value = dict with description and confidence."
     )
-
+        
 
 class LLMScore(BaseModel):
     """A LLM score comparing the worth of the research"""
-    research_ideas: Dict[str, float] = Field(
+    research_ideas: Dict[str, float] = Field(...,
         description= "The key consist of the idea name and value if the ranking"
     )

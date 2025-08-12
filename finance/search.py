@@ -16,11 +16,30 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain.chains import LLMChain, SimpleSequentialChain
-import openai
+from openai import OpenAI
 import numpy as np
+import json
+
 
 
 load_dotenv()
+
+# Initialize OpenAI v1 client once (for embeddings)
+_openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Helper to strip code fences from LLM outputs
+
+def _strip_code_fences(text: str) -> str:
+    raw = (text or "").strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) > 1:
+            block = parts[1].lstrip()
+            if block.startswith("json"):
+                block = block.split("\n", 1)[1] if "\n" in block else ""
+            raw = block.strip()
+    return raw
+
 
 
 available_tools = [
@@ -94,23 +113,38 @@ class DeepSearchTool:
             self.ideas = {}
 
 
-        def planner_agent(self,prompt):
-            prompt = f"""
-            You are an AI Planning Agent who is responsible for planning different roles and description for different sub-agents.Based on the given
-            {prompt}
-            """
-            llm = self.llm.with_structured_output(PlanningSchema)
+        def planner_agent(prompt):
+            api_key = os.getenv("OPENAI_API_KEY")
+            llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+            system_prompt = (
+            "You are an AI Research Agent responsible for generating 5 different investment scenarios for the given prompt. "
+            "Your response must be a valid JSON array of objects, each with the following fields:\n"
+            "- idea: The name of the investment scenario (do not use 'idea_name', just the actual idea).\n"
+            "- idea_description: A detailed description of the scenario.\n"
+            "- confidence_score: A number between 0 and 1 representing your confidence in this scenario (0 = lowest, 1 = highest).\n"
+            "Example:\n"
+            "[\n"
+            "  {\n"
+            "    \"idea\": \"Long Brazil Economy\",\n"
+            "    \"idea_description\": \"Invest in Brazilian equities due to strong growth outlook and favorable monetary policy.\",\n"
+            "    \"confidence_score\": 0.85\n"
+            "  },\n"
+            "  ...\n"
+            "]"
+            )
             result = llm.invoke([
-                {'role':'system','content' : prompt},
+                {'role':'system','content' : system_prompt},
                 {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
-            
+                
             ])
-            for key,values in result.research_ideas.items():
-                self.ideas[key] = values
+            raw = _strip_code_fences(result.content)
+            scenarios = json.loads(raw)
 
-            return result
+            return scenarios
+
         
         def main(self,prompt):
+
 
             response = self.planner_agent(prompt)
 
@@ -122,17 +156,18 @@ class DeepSearchTool:
             
             self.query = query
             self.api_key = api_key
-            openai.api_key = api_key
+            # (Embeddings use global OpenAI client)
 
         def get_embedding(self, text):
-            response = openai.Embedding.create(
-                input=text,
-                model="text-embedding-ada-002"
+            # OpenAI v1 embeddings API
+            resp = _openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=text
             )
-            return response['data'][0]['embedding']
+            return resp.data[0].embedding
 
         def compare_embeddings(self, query_embedding, idea_embedding):
-            # Example: Euclidean distance
+            # Example: Euclidean distance (unchanged logic)
             return float(np.linalg.norm(np.array(query_embedding) - np.array(idea_embedding)))
 
         def add_embedding_difference(self, ideas):
@@ -146,23 +181,41 @@ class DeepSearchTool:
         
 
 
-
-        def get_llm_score(self, query : str, idea_text : str) -> dict:
+        def get_llm_score(query : str, idea_text : json) -> dict:
+    
             """
             A LLM Score focused on ranking the ideas with the query based on relevance
             """
+            api_key = os.getenv("OPENAI_API_KEY")
+            llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
 
-            llm = llm.with_structured_output(LLMScore)
-
-            prompt = "Conduct a similarity score between the {query} and {idea_text}"
+            # Format and instruct model for strict JSON, mirroring test structure
+            ideas_json = json.dumps(idea_text, ensure_ascii=False)
+            prompt = (
+            f"Compare the following ideas (JSON):\n{ideas_json}\n\n"
+            f"against the query: \"{query}\" and return a JSON array. You are a part of AI Investment Analyst where you are responsible for " \
+            "conducting a similarity score focus on the context and how relevant it will be for an investment analyst. You should assign score based on relevance, but also credit ideas" \
+            "which are relevant."
+            "Each object should have:\n"
+            "- idea: The scenario name\n"
+            "- similarity_score: A float between 0 and 1 representing similarity\n"
+            "Example:\n"
+            "[\n"
+            "  {\"idea\": \"Long Brazil Economy\", \"similarity_score\": 0.92},\n"
+            "  ...\n"
+            "]"
+            )
 
             result = llm.invoke([
                 {'role':'system', 'content': prompt},
                 {'role':'user','content' : f"Compare the prompt and ideas and focus on how relevant it is to the required prompt"}
             ])
+            raw = _strip_code_fences(result.content)
+            result = json.loads(raw)
+
+            print(result)
 
             return result
-
 
 
         def reranking(self, ideas) -> dict:
@@ -193,7 +246,7 @@ class DeepSearchTool:
             return result
     
     class DFS:
-        def __init(self,query,api_key, llm):
+        def __init__(self,query,api_key, llm):
             self.query = query
             self.llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
         
@@ -219,6 +272,7 @@ class DeepSearchTool:
                 {'role':'user','content' : f"Summarize result"}
             ])
             return final_result
+
 
 
 
