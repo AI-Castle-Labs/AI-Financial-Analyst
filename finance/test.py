@@ -1,10 +1,5 @@
 from langchain.chat_models import init_chat_model
-from langgraph.graph import StateGraph, START, END
-from langchain.tools import Tool
-from langchain.agents import initialize_agent, AgentType
-from langchain.tools import StructuredTool
-from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt,system_fx_research_prompt,system_agent_prompt,system_portfolio_manager_prompt
-from schema import PlanningSchema,LLMScore,SonarInput
+from prompt import system_planner_prompt
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -73,7 +68,6 @@ def planner_agent(prompt):
 
 
 def get_llm_score(query: str, idea_text: json) -> list[dict]:
-    
     """
     A LLM Score focused on ranking the ideas with the query based on relevance
     """
@@ -122,6 +116,7 @@ def get_llm_score(query: str, idea_text: json) -> list[dict]:
 # --- Embedding utilities (standalone) ---
 
 def get_embedding(text: str):
+    """Turning words into embeddings"""
     # Use OpenAI v1 client
     resp = _openai_client.embeddings.create(
         model="text-embedding-3-small",
@@ -131,6 +126,7 @@ def get_embedding(text: str):
 
 
 def cosine_similarity(a, b) -> float:
+    """Cosine similarity between query and ideas/nodes"""
     a = np.array(a, dtype=float)
     b = np.array(b, dtype=float)
     denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-8
@@ -155,6 +151,7 @@ def add_embedding_scores(query: str, ideas: list[dict]) -> list[dict]:
 # --- Hybrid reranker ---
 
 def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sorted_by_similarity: list[dict]):
+    """Re-rank of the ideas through a LLM"""
     api_key = os.getenv("OPENAI_API_KEY")
     llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider="openai", api_key=api_key)
 
@@ -165,11 +162,15 @@ def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sort
     }
 
     system = (
-        "You are an AI Hybrid Reranker. Combine multiple signals to produce a final ordered list of ideas from most important to least. For your reasoning be factual do not just use reasons like similarity score, use factual concepts with that as well\n"
+        "You are an AI Hybrid Reranker. Combine multiple signals to produce a final ordered list of ideas from most important to least.\n"
+        "Reasoning requirements:\n"
+        "- Do not justify with 'high similarity' signals alone; explain the true underlying meaning/causal or economic rationale behind the ranking.\n"
+        "- Link drivers (macro regime, policy, flows, valuation, earnings, positioning) to each idea's merits/risks.\n"
+        "- Use the signals as supporting evidence only.\n"
         "Guidelines:\n"
-        "- Prefer higher LLM similarity_score and higher embedding_similarity.\n"
+        "- Prefer higher LLM similarity_score and higher embedding_similarity when aligned with the substantive rationale.\n"
         "- Remove the single lowest-ranked idea from the final output.\n"
-        "- If signals disagree, provide a balanced final ranking and include a brief reason per item.\n"
+        "- If signals disagree, provide a balanced final ranking and include a brief reason per item that reflects underlying meaning.\n"
         "Return strictly valid JSON: a list of objects with fields: idea (str), final_score (0..1), reason (str)."
     )
 
@@ -207,13 +208,35 @@ def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sort
 
     return ranked
 
+def question_agent(prompt : str):
+    """Agents responsible for questioning and validating every node"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider="openai", api_key=api_key)
+    
+    payload = {
+        'llm_scores': llm_scores,
+        'embedding_scores': embedding_scores,
+        'sorted_by_similarity': sorted_by_similarity
+    }
+
+    system_prompt = system_planner_prompt
+    content = json.dumps(payload, ensure_ascii=False)
+
+    result = llm.invoke([
+        {'role': 'system', 'content': system_prompt},
+        {'role': 'user', 'content': f"Rerank using these inputs:\n{content}"}
+    ])
+
+
 
 def run(prompt: str):
+    """Main function to run the class"""
     scenarios, scores, sorted_scores = planner_agent(prompt)
     embedding_scores = add_embedding_scores(prompt, scenarios)
     final_ranking = hybrid_rerank_run(scores, embedding_scores, sorted_scores)
     print("Final ranking:", final_ranking)
     return final_ranking
+
 
 
 # Entry point

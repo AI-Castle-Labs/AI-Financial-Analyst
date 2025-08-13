@@ -102,8 +102,7 @@ def tavilly_search(query):
     response = client.search(
         query=query
     )
-print(response)
-    
+    return response    
 
 def claude_search():
      return 0
