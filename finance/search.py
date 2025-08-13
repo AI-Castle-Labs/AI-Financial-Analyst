@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import StructuredTool
-from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt,system_fx_research_prompt,system_agent_prompt,system_portfolio_manager_prompt
+from prompt import system_planner_prompt,system_agent_prompt,system_portfolio_manager_prompt
 from schema import PlanningSchema,LLMScore,SonarInput
 import os
 from dotenv import load_dotenv
@@ -19,7 +19,10 @@ from langchain.chains import LLMChain, SimpleSequentialChain
 from openai import OpenAI
 import numpy as np
 import json
+from typing import Literal
 
+from tavily import TavilyClient
+from deepagents import create_deep_agent
 
 
 load_dotenv()
@@ -91,18 +94,27 @@ class DeepSearchTool:
         self.model = model
         self.api_key = api_key
         self.llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+        self.graph = {}
     
 
-    def main(self,model,api_key,prompt,number) -> str:
+    def run(self,model,api_key,prompt,number) -> str:
 
         final_number = number
         final_ideas = ""
         
-        for i in range(number):
-            response = self.BFS.planner_agent(final_ideas,prompt,final_number)
-            final_ideas = self.Ranking.hybrid_rerank_run(response)
-            final_number = final_number - 1
-            
+        scenarios, scores, sorted_scores = self.BFS.planner_agent(prompt)
+        embedding_scores = self.Ranking.add_embedding_scores(prompt, scenarios)
+        final_ranking = self.Ranking.hybrid_rerank_run(scores, embedding_scores, sorted_scores)
+        
+        for i in range(number - 1):
+            scenarios, scores, sorted_scores = self.BFS.question_agent(prompt)
+            embedding_scores = self.Ranking.add_embedding_scores(prompt, scenarios)
+            final_ranking = self.Ranking.hybrid_rerank_run(scores, embedding_scores, sorted_scores)
+
+            prompt = final_ranking
+        
+        
+
 
 
 
@@ -111,11 +123,11 @@ class DeepSearchTool:
         def __init__(self,ideas):
 
             self.ideas = {}
+            self.api_key = os.getenv("OPENAI_API_KEY")
+            self.llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
 
 
-        def planner_agent(prompt):
-            api_key = os.getenv("OPENAI_API_KEY")
-            llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+        def planner_agent(self,prompt,level):
             system_prompt = (
             "You are an AI Research Agent responsible for generating 5 different investment scenarios for the given prompt. "
             "Your response must be a valid JSON array of objects, each with the following fields:\n"
@@ -132,7 +144,7 @@ class DeepSearchTool:
             "  ...\n"
             "]"
             )
-            result = llm.invoke([
+            result = self.llm.invoke([
                 {'role':'system','content' : system_prompt},
                 {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
                 
@@ -142,11 +154,21 @@ class DeepSearchTool:
 
             return scenarios
 
-        
-        def main(self,prompt):
+        def question_agent(self,prompt):
+            system_prompt = system_planner_prompt
+            result = self.llm.invoke([
+                {'role':'system','content' : system_prompt},
+                {'role':'user','content' : f"Provide analysis for {prompt}"}
+                
+            ])
 
+        def main(self,prompt,level):
 
-            response = self.planner_agent(prompt)
+            if level == 1:
+                scenarios, scores, sorted_scores = self.planner_agent(prompt)
+            else:
+                scenarios,scores,sorted_scores = self.question_agent(prompt)
+            
 
     
 
@@ -249,14 +271,16 @@ class DeepSearchTool:
         def __init__(self,query,api_key, llm):
             self.query = query
             self.llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
+            self.tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+
         
 
         def node_search(self,query : str, idea_research : dict) -> dict:
             """
-            Conducts a research on the node topic
+            Conducts a deep research on the node topic
             """
             prompt = f"""
-            You are an AI Assistant responsible for conducting summarizing research on {query}
+            You are an AI Assistant responsible for conducting and summarizing research on {query}
             """
             agent = initialize_agent(
                 tools = available_tools,
@@ -272,6 +296,23 @@ class DeepSearchTool:
                 {'role':'user','content' : f"Summarize result"}
             ])
             return final_result
+        
+        def internet_search(self,
+            query: str,
+            max_results: int = 5,
+            topic: Literal["general", "news", "finance"] = "general",
+            include_raw_content: bool = False,
+        ):
+            """Run a web search"""
+            return self.tavily_client.search(
+                query,
+                max_results=max_results,
+                include_raw_content=include_raw_content,
+                topic=topic,
+            )
+        
+        def run(self,node):
+            research = self.node_search(node)
 
 
 

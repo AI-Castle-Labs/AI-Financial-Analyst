@@ -168,7 +168,7 @@ def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sort
         "You are an AI Hybrid Reranker. Combine multiple signals to produce a final ordered list of ideas from most important to least. For your reasoning be factual do not just use reasons like similarity score, use factual concepts with that as well\n"
         "Guidelines:\n"
         "- Prefer higher LLM similarity_score and higher embedding_similarity.\n"
-        "-Remove the lowest one when you give the output"
+        "- Remove the single lowest-ranked idea from the final output.\n"
         "- If signals disagree, provide a balanced final ranking and include a brief reason per item.\n"
         "Return strictly valid JSON: a list of objects with fields: idea (str), final_score (0..1), reason (str)."
     )
@@ -191,6 +191,20 @@ def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sort
             raw = block.strip()
 
     ranked = json.loads(raw)
+
+    # Enforce ordering (most-to-least) and drop the last (lowest-ranked) item
+    try:
+        if isinstance(ranked, list):
+            ranked = sorted(
+                ranked,
+                key=lambda x: x.get('final_score'),
+                reverse=True
+            )
+            if len(ranked) > 0:
+                ranked = ranked[:-1]
+    except Exception:
+        pass
+
     return ranked
 
 

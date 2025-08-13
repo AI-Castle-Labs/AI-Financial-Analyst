@@ -1,57 +1,44 @@
-from typing import List, Tuple
-from altair import Description
-import pandas as pd
-
-from langchain.chat_models import init_chat_model
+from typing import List, Tuple, Dict, Any
 
 from pydantic import BaseModel, Field
-from typing import Dict,Any
-
 from typing_extensions import Annotated
 
 
-
-#Q/A Output Schema
-
+# Q/A Output Schema
 class Classification_outputSchema(BaseModel):
-
     """Output Schmea for Q/A"""
 
     datasource: str = Field(
-
-        description = "Data source for the respective data point"
-
+        description="Data source for the respective data point"
     )
-    name_point : str = Field(
-        description= "The name of the datapoint for example for FEDFUNDS it would be FRED Fed Funds Rate"
+    name_point: str = Field(
+        description="The name of the datapoint for example for FEDFUNDS it would be FRED Fed Funds Rate"
     )
-
-    data_point : str = Field(
-
-        description = "The name of the data point for the respective source. Example for Fred Fed Funds Rate, output would be FEDFUNDS"
-
+    data_point: str = Field(
+        description="The name of the data point for the respective source. Example for Fred Fed Funds Rate, output would be FEDFUNDS"
     )
 
 
 class MacroAnalystSchema(BaseModel):
     """Output Schema for Macro Analyst"""
 
-    datasource : str = Field (
-        description= "Data source for the respective data point"
+    datasource: str = Field(
+        description="Data source for the respective data point"
     )
-    
-    pitch : str = Field (
-        description = "The macro investment pitch on what is a good trade right now"
+    pitch: str = Field(
+        description="The macro investment pitch on what is a good trade right now"
     )
-    instructions : str = Field (
-        description = "Provide instructions to sub-agent to perform further research"
+    instructions: str = Field(
+        description="Provide instructions to sub-agent to perform further research"
     )
-    created_agent_description : str = Field(
-        description = "For the newly created agent provide the information about it including description, task and other information"
+    created_agent_description: str = Field(
+        description="For the newly created agent provide the information about it including description, task and other information"
     )
+
 
 class SectorAnalystSchema(BaseModel):
     """Output Schema for Equity Research Analyst"""
+
     sector: str = Field(
         description="Industry sector (e.g., Technology, Healthcare)"
     )
@@ -85,36 +72,40 @@ class QuantAnalystSchema(BaseModel):
         description="Key insight or interpretation of the results"
     )
 
+
 class GeneralAgentSchema(BaseModel):
     """Output Schema for General Agent"""
 
     research: str = Field(
-        description= "The research done by the agent"
+        description="The research done by the agent"
     )
+
 
 class FXAgentSchema(BaseModel):
     """Output Schema for FX Agent"""
 
-    research : str = Field(
-        description = "Key research and insights on FX"
+    research: str = Field(
+        description="Key research and insights on FX"
     )
 
 
 class CentralBankSchema(BaseModel):
     """Output Schema for Central Bank Agent"""
 
-    outlook : str = Field(
-        description = "Outlook for the respective sector"
+    outlook: str = Field(
+        description="Outlook for the respective sector"
     )
-    research : str = Field(
-        description= "Research for the respective sector"
+    research: str = Field(
+        description="Research for the respective sector"
     )
-    Source : str = Field(
-        description = "Source of the respective research"
+    Source: str = Field(
+        description="Source of the respective research"
     )
+
 
 class PerformanceMetrics(BaseModel):
     """Output Schema for Performance Metrics"""
+
     return_: float = Field(..., description="Portfolio return")
     volatility: float = Field(..., description="Portfolio volatility")
     sharpe: float = Field(..., description="Portfolio Sharpe ratio")
@@ -124,14 +115,12 @@ class PerformanceMetrics(BaseModel):
 
 
 class SonarInput(BaseModel):
-    ideas : str
-
-
-
+    ideas: str
 
 
 class PortfolioManagerSchema(BaseModel):
     """Output Schema for Portfolio Manager"""
+
     portfolio_summary: str = Field(
         description="Summary of the current portfolio holdings and allocation"
     )
@@ -152,16 +141,24 @@ class PortfolioManagerSchema(BaseModel):
         extra = "forbid"
 
 
-
 class PlanningSchema(BaseModel):
     """Output for Planning Agent for deepsearch"""
-    research_ideas: Dict[str,str]= Field(...,
-        Description="Different investment research ideas. Key = idea name, Value = dict with description and confidence."
+
+    research_ideas: Dict[str, Dict[str, Any]] = Field(
+        ..., description="Different investment research ideas. Key = idea name, Value = dict with description and confidence."
     )
-        
+
+
+class SimilarityScoreSchema(BaseModel):
+    idea: str = Field(..., description="The scenario name")
+    similarity_score: float = Field(
+        ..., ge=0.0, le=1.0, description="A float between 0 and 1 representing similarity"
+    )
+
 
 class LLMScore(BaseModel):
     """A LLM score comparing the worth of the research"""
-    research_ideas: Dict[str, float] = Field(...,
-        description= "The key consist of the idea name and value if the ranking"
+
+    research_ideas: Dict[str, float] = Field(
+        ..., description="The key consist of the idea name and value if the ranking"
     )
