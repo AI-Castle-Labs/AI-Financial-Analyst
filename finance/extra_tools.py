@@ -6,21 +6,18 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from tavily import TavilyClient 
 
 def chart_agent(self,data_point):
+    llm = self.llm.with_structured_output(Classification_outputSchema)
+    system_prompt = system_source_prompt
 
-        llm = self.llm.with_structured_output(Classification_outputSchema)
-        system_prompt = system_source_prompt
-
-        result = self.llm.invoke([
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': f"You are a macro analyst and you are analyzing {prompt} for a firm provide 2 data points, be very specific"}
-        ])
-        print(result)
-        output_structure = {'data_source':result.datasource, 'name_point':result.name_point, 'data_point': result.data_point}
-
-        print(FRED_Chart(result.name_point,result.data_point))
+    result = self.llm.invoke([
+        {'role': 'system', 'content': system_prompt},
+        {'role': 'user', 'content': f"You are a macro analyst and you are analyzing {prompt} for a firm provide 2 data points, be very specific"}
+    ])
+    print(result)
+    output_structure = {'data_source':result.datasource, 'name_point':result.name_point, 'data_point': result.data_point}
+    print(FRED_Chart(result.name_point,result.data_point))
 
 
 

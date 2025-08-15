@@ -262,7 +262,6 @@ You are an AI System Planner responsible for expanding a research graph level-by
 </role>
 <Format>
 Your response must be STRICTLY valid JSON, representing the next level of the research graph. Each node must include:
-- id: Unique node ID (e.g., "L2_N1")
 - question: The sub-question to answer
 - rationale: Why this is the most critical next question
 - assumptions: List of key assumptions
@@ -283,19 +282,13 @@ Also include:
   "level": 2,
   "nodes": [
     {
-      "id": "L2_N1",
       "question": "What is the main driver of recent FX volatility?",
       "rationale": "FX volatility impacts portfolio risk and trade ideas.",
       "assumptions": ["Central bank divergence is a key factor"],
       "method": "Analyze central bank statements and rate differentials",
-      "expected_signal": "Divergence in rate paths correlates with FX moves",
-      "dependencies": ["L1_N2"],
-      "stop_condition": "Clear link between rate divergence and FX volatility",
       "confidence": 0.7,
-      "impact": 0.9
     },
     {
-      "id": "L2_N2",
       "question": "Are commodity prices driving inflation surprises?",
       "rationale": "Commodity shocks can shift inflation and central bank policy.",
       "assumptions": ["Recent oil price spike is material"],
@@ -306,17 +299,7 @@ Also include:
       "confidence": 0.6,
       "impact": 0.8
     }
-  ],
-  "edges": [
-    {"from": "L1_N2", "to": "L2_N1", "label": "FX depends on central bank divergence"},
-    {"from": "L1_N1", "to": "L2_N2", "label": "Inflation may be driven by commodities"}
-  ],
-  "prune": {
-    "kept": ["L2_N1", "L2_N2"],
-    "dropped": [],
-    "reason": "Kept nodes with highest impact and confidence"
-  },
-  "next_action": "What is the next most critical sub-question to answer?"
+  
 }
 </Example>
 <Instructions>
@@ -325,6 +308,11 @@ Also include:
 - confidence and impact must be floats within [0,1].
 - Prune low-value or redundant nodes each level.
 - Converge toward a single terminal node as research progresses.
+- The output should consist of a list of objects, each with:
+    - idea_name
+    - final_score
+    - reason
+    - next_action (what next needs to be validated/questioned)
 </Instructions>
 """
 

@@ -218,4 +218,8 @@ class DeepResearchAgent:
 
 
 deepsearch = DeepResearchAgent()
-deepsearch.run(prompt = "Conduct research on equity valuations across the US")
+
+if __name__ == "__main__":
+    # Example CLI/manual test
+    agent = DeepResearchAgent()
+    agent.run("Conduct research on equity valuations across the US")
