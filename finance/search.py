@@ -89,8 +89,6 @@ class DeepSearchTool:
 
     def run(self,prompt,number) -> str:
 
-        final_number = number
-        final_ideas = ""
         
         scenarios, scores, sorted_scores = self.BFS.planner_agent(prompt)
         embedding_scores = self.Ranking.add_embedding_scores(prompt, scenarios)
@@ -105,7 +103,7 @@ class DeepSearchTool:
             sorted_by_similarity = sorted(embedding_scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
             final_ranking = self.Ranking.hybrid_rerank_run(llm_score, embedding_scores, sorted_by_similarity)
             # Only keep the last value
-            if i == 2:
+            if i == number - 1:
                 final = final_ranking
 
         print("This is final", final)
@@ -175,6 +173,8 @@ class DeepSearchTool:
             return scenarios, scores, sorted_by_similarity
 
 
+        
+        
         def question_agent(payload):
             """Agents responsible for questioning and validating every node. Accepts a payload (usually final_ranking list)."""
             api_key = os.getenv("OPENAI_API_KEY")
@@ -204,34 +204,6 @@ class DeepSearchTool:
 
             return output
         
-        def question_agent(self,payload):
-            """Agents responsible for questioning and validating every node. Accepts a payload (usually final_ranking list)."""
-            api_key = os.getenv("OPENAI_API_KEY")
-            llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider="openai", api_key=api_key)
-
-            system_prompt = system_planner_prompt
-            user_prompt = json.dumps(payload, ensure_ascii=False)
-
-            result = llm.invoke([
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': f"Rerank using these inputs:\n{user_prompt}"}
-            ])
-            raw = result.content.strip()
-            if raw.startswith("```"):
-                parts = raw.split("```")
-                if len(parts) > 1:
-                    block = parts[1]
-                    block = block.lstrip()
-                    if block.startswith("json"):
-                        block = block.split("\n", 1)[1] if "\n" in block else ""
-                    raw = block.strip()
-            try:
-                output = json.loads(raw)
-            except Exception:
-                output = raw
-            #print("Output coming from question_agent:", output)
-
-            return output
     
         def main(self,prompt,level):
 
@@ -354,7 +326,7 @@ class DeepSearchTool:
 
 
 
-        def get_llm_score(query: str, idea_text: json) -> list[dict]:
+        def get_llm_score(self,query: str, idea_text: json) -> list[dict]:
             """
             A LLM Score focused on ranking the ideas with the query based on relevance
             """
@@ -471,4 +443,4 @@ class DeepSearchTool:
 
 
 search = DeepSearchTool()
-print(search.run(prompt = "Long Brazil", number = "5"))
+print(search.run(prompt = "Long Brazil Economy", number = 5))
