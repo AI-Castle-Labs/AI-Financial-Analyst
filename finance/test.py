@@ -60,7 +60,7 @@ def planner_agent(prompt):
     # Get similarity scores for the scenarios and sort them by similarity_score (desc)
     scores = get_llm_score(prompt, scenarios)
     sorted_by_similarity = sorted(scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
-    print("Sorted by similarity", sorted_by_similarity)
+    #print("Sorted by similarity", sorted_by_similarity)
 
     # Return all for downstream processing
     return scenarios, scores, sorted_by_similarity
@@ -233,6 +233,7 @@ def question_agent(payload):
     except Exception:
         output = raw
     #print("Output coming from question_agent:", output)
+
     return output
 
 
@@ -240,48 +241,42 @@ def question_agent(payload):
 def run(prompt: str):
     """Main function to run the class"""
     scenarios, scores, sorted_scores = planner_agent(prompt)
+    print(scenarios)
     embedding_scores = add_embedding_scores(prompt, scenarios)
     final_ranking = hybrid_rerank_run(scores, embedding_scores, sorted_scores)
 
-    # Iteratively prune candidates from current size down to 1 (e.g., 4 -> 3 -> 2 -> 1).
-    # At each step we: question/validate the nodes, recompute LLM scores + embeddings using the
-    # main user query, run the hybrid reranker, and trim to the new target length.
-    if not isinstance(final_ranking, list):
-        final_ranking = list(final_ranking) if final_ranking else []
+    
+    
+    
+    for i in range(1):
+        nextlevel = question_agent(final_ranking)
+        print(nextlevel)
+        llm_score = get_llm_score(prompt, nextlevel)
+        print(llm_score)
+        embedding_scores = add_embedding_scores(prompt,nextlevel)
+        
 
-    start_len = len(final_ranking)
-    # If the initial rerank produced N candidates, we'll prune to N-1, N-2, ..., 1
-    for target_len in range(start_len - 1, 0, -1):
-        # Validate/question the current ranking
-        questioned = question_agent(final_ranking)
-        print("Coming out of questioned", questioned)
-        if not isinstance(questioned, list):
-            print("question_agent did not return a list; stopping iterative prune")
-            break
+        """
+        if  isinstance(scenarios,list):
+            scenarios = json.dumps(scenarios)
+        llm_score = get_llm_score(prompt,scenarios)
+        print(scenarios)
+        embedding_scores = add_embedding_scores(prompt,scenarios)
+        final_ranking = hybrid_rerank_run(llm_score,embedding_scores,sorted_scores = None)
+        
+        i+= 0
 
-        # Use the idea names from the questioned output to select the original scenario objects
-        remaining_names = {item.get('idea') for item in questioned if isinstance(item, dict)}
-        current_ideas = [s for s in scenarios if s.get('idea') in remaining_names]
-        if not current_ideas:
-            print("No matching scenarios found for questioned output; stopping iterative prune")
-            break
+        print("final ranking",final_ranking)
+        """
 
-        # Recompute signals with the main user query
-        llm_scores = get_llm_score(prompt, current_ideas)
-        embedding_scores = add_embedding_scores(prompt, current_ideas)
-        sorted_by_similarity = sorted(llm_scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
-
-        # Rerank using the hybrid reranker (combines LLM + embedding + other signals)
-        new_ranking = hybrid_rerank_run(llm_scores, embedding_scores, sorted_by_similarity)
-        if not isinstance(new_ranking, list):
-            print("hybrid_rerank_run did not return a list; stopping iterative prune")
-            break
-
-        # Trim to the requested target length (this performs the pruning step)
-        final_ranking = new_ranking[:target_len]
-        print(f"Pruned to {len(final_ranking)} candidates")
-
-    return final_ranking
+    #Loop over n-2    
+        #Re-ranking
+            #LLM Score(str,json)
+            #Emebdding
+            #Reranking
+        #returns final node
+    
+    #DeepSearch DFS
 
 
 

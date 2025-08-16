@@ -314,6 +314,14 @@ Also include:
     - reason
     - next_action (what next needs to be validated/questioned)
 </Instructions>
+
+<Output Structure>
+{
+  "idea":The idea provided,
+  "rational": Provide a more in-depth rational
+  'similarity_score: The similarity_score provided
+
+}
 """
 
 
