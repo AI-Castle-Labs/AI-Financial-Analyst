@@ -20,6 +20,7 @@ from openai import OpenAI
 import numpy as np
 import json
 from typing import Literal
+from ai_finance_analyst import DeepResearchAgent
 
 #from tavily import TavilyClient
 from deepagents import create_deep_agent
@@ -86,6 +87,7 @@ class DeepSearchTool:
         self.llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider="openai", api_key=os.getenv("OPENAI_API_KEY"))
         self.BFS = self.BFS(ideas={})  
         self.Ranking = self.Ranking(model=None, api_key=os.getenv("OPENAI_API_KEY"), query="")  # Instantiate Ranking
+        self.DeepResearchAgent = DeepResearchAgent()
 
     def run(self,prompt,number) -> str:
 
@@ -94,20 +96,57 @@ class DeepSearchTool:
         embedding_scores = self.Ranking.add_embedding_scores(prompt, scenarios)
         final_ranking = self.Ranking.hybrid_rerank_run(scores, embedding_scores, sorted_scores)
 
-        
+        # Keep track of the last non-empty final_ranking as a safe fallback
+        last_non_empty_final = final_ranking if final_ranking else None
+
         final = None
         for i in range(number):
+            # If final_ranking is empty, break early and keep the last non-empty ranking
+            if not final_ranking:
+                # No further meaningful work can be done; break to avoid cascading empty LLM calls
+                break
+
             nextlevel = self.BFS.question_agent(final_ranking)
-            llm_score = self.Ranking.get_llm_score(prompt, nextlevel)
-            embedding_scores = self.Ranking.add_embedding_scores(prompt, nextlevel)
-            sorted_by_similarity = sorted(embedding_scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
+
+            # Normalize nextlevel to a list of idea dicts if possible
+            if isinstance(nextlevel, dict):
+                # If it's an error dict or single object, try to extract reranked_ideas or ideas
+                if nextlevel.get('error'):
+                    # stop iteration on error
+                    break
+                elif 'reranked_ideas' in nextlevel:
+                    normalized_next = nextlevel.get('reranked_ideas') or []
+                else:
+                    # wrap single dict into list
+                    normalized_next = [nextlevel]
+            elif isinstance(nextlevel, list):
+                normalized_next = nextlevel
+            else:
+                normalized_next = []
+
+            llm_score = self.Ranking.get_llm_score(prompt, normalized_next)
+            embedding_scores = self.Ranking.add_embedding_scores(prompt, normalized_next)
+            sorted_by_similarity = sorted(embedding_scores, key=lambda x: x.get('embedding_similarity', 0), reverse=True)
             final_ranking = self.Ranking.hybrid_rerank_run(llm_score, embedding_scores, sorted_by_similarity)
+
+            if final_ranking:
+                last_non_empty_final = final_ranking
+
             # Only keep the last value
             if i == number - 1:
                 final = final_ranking
 
+        # If final is empty, fallback to last_non_empty_final or initial scores
+        if not final:
+            if last_non_empty_final:
+                final = last_non_empty_final
+            else:
+                # fallback to initial scores (if any)
+                final = scores if scores else []
+
         print("This is final", final)
-        
+        research = self.DeepResearchAgent.run(prompt = final)
+        return research
         
 
 
@@ -175,13 +214,25 @@ class DeepSearchTool:
 
         
         
-        def question_agent(payload):
+        def question_agent(self, payload):
             """Agents responsible for questioning and validating every node. Accepts a payload (usually final_ranking list)."""
+            # Ensure payload is normalized to a list
+            if not payload:
+                return []
+
+            # If payload is a dict with an 'error' key, surface it so caller can decide
+            if isinstance(payload, dict) and payload.get('error'):
+                return payload
+
             api_key = os.getenv("OPENAI_API_KEY")
             llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider="openai", api_key=api_key)
 
             system_prompt = system_planner_prompt
-            user_prompt = json.dumps(payload, ensure_ascii=False)
+            try:
+                user_prompt = json.dumps(payload, ensure_ascii=False)
+            except TypeError:
+                # fallback: coerce to string
+                user_prompt = str(payload)
 
             result = llm.invoke([
                 {'role': 'system', 'content': system_prompt},
@@ -200,8 +251,11 @@ class DeepSearchTool:
                 output = json.loads(raw)
             except Exception:
                 output = raw
-            #print("Output coming from question_agent:", output)
-
+            # Ensure a list is returned where possible
+            if isinstance(output, dict) and 'reranked_ideas' in output:
+                return output['reranked_ideas']
+            if isinstance(output, dict) and not output:
+                return []
             return output
         
     
@@ -213,8 +267,8 @@ class DeepSearchTool:
                 scenarios,scores,sorted_scores = self.question_agent(prompt)
             
 
-    
 
+    
 
     class Ranking:
         def __init__(self, model, api_key, query):
@@ -242,33 +296,65 @@ class DeepSearchTool:
             denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-8
             return float(np.dot(a, b) / denom)
 
-        def add_embedding_scores(self,query: str, ideas: list[dict]) -> list[dict]:
+        def add_embedding_scores(self,query: str, ideas) -> list[dict]:
             """Compute embedding-based similarity per idea and return list[{idea, embedding_similarity}]."""
+            # Normalize ideas into a list of dicts
+            normalized = []
+            if not ideas:
+                return []
+            if isinstance(ideas, dict):
+                # If wrapped in a structure with reranked_ideas
+                if 'reranked_ideas' in ideas:
+                    normalized = ideas.get('reranked_ideas') or []
+                else:
+                    normalized = [ideas]
+            elif isinstance(ideas, list):
+                normalized = ideas
+            else:
+                # Unknown type, try to coerce
+                try:
+                    normalized = list(ideas)
+                except Exception:
+                    return []
+
             query_embedding = self.get_embedding(query)
             results = []
-            for item in ideas:
+            for item in normalized:
                 if isinstance(item,dict):
                     idea_text = f"{item.get('idea','')}: {item.get('idea_description','')}"
+                    # if idea_text empty, try other fields
+                    if not idea_text.strip():
+                        idea_text = json.dumps(item, ensure_ascii=False)
                     idea_embedding = self.get_embedding(idea_text)
                     sim = self.cosine_similarity(query_embedding, idea_embedding)
                     results.append({
-                        'idea': item.get('idea',''),
+                        'idea': item.get('idea','') or idea_text,
                         'embedding_similarity': sim
                     })
                 else:
-                    for action in ideas.get('reranked_ideas', []):
-                        next_action = action.get('next_action')
-                        idea_embedding = self.get_embedding(str(next_action))
+                    # fallback for non-dict entries
+                    try:
+                        idea_embedding = self.get_embedding(str(item))
                         sim = self.cosine_similarity(query_embedding, idea_embedding)
                         results.append({
-                            'idea': str(next_action),
+                            'idea': str(item),
                             'embedding_similarity': sim
                         })
+                    except Exception:
+                        continue
 
             return results
 
-        def hybrid_rerank_run(self,llm_scores: list[dict], embedding_scores: list[dict], sorted_by_similarity: list[dict]):
+        def hybrid_rerank_run(self,llm_scores: list, embedding_scores: list, sorted_by_similarity: list[dict]):
             """Re-rank of the ideas through a LLM"""
+            # If all inputs are empty, return safe fallback
+            if not llm_scores and not embedding_scores and not sorted_by_similarity:
+                return []
+
+            # Normalize llm_scores to list
+            if isinstance(llm_scores, dict):
+                llm_scores = [llm_scores]
+
             api_key = os.getenv("OPENAI_API_KEY")
             llm = init_chat_model("gpt-4o-2024-08-06", temperature=0.0, model_provider = "openai", api_key=api_key)
 
@@ -307,14 +393,18 @@ class DeepSearchTool:
                         block = block.split("\n", 1)[1] if "\n" in block else ""
                     raw = block.strip()
 
-            ranked = json.loads(raw)
+            try:
+                ranked = json.loads(raw)
+            except Exception:
+                # If LLM did not return JSON, fallback to using llm_scores sorted by similarity_score
+                ranked = llm_scores or embedding_scores or []
 
             # Enforce ordering (most-to-least) and drop the last (lowest-ranked) item
             try:
                 if isinstance(ranked, list):
                     ranked = sorted(
                         ranked,
-                        key=lambda x: x.get('final_score'),
+                        key=lambda x: x.get('final_score', x.get('similarity_score', 0) or x.get('embedding_similarity', 0)),
                         reverse=True
                     )
                     if len(ranked) > 0:
@@ -326,15 +416,22 @@ class DeepSearchTool:
 
 
 
-        def get_llm_score(self,query: str, idea_text: json) -> list[dict]:
+        def get_llm_score(self,query: str, idea_text) -> list[dict]:
             """
             A LLM Score focused on ranking the ideas with the query based on relevance
             """
             api_key = os.getenv("OPENAI_API_KEY")
             llm = init_chat_model("gpt-4o-2024-08-06", temperature = 0.0, model_provider = "openai",api_key = api_key)
 
-            # Pass the ideas as proper JSON to the model
-            ideas_json = json.dumps(idea_text, ensure_ascii=False)
+            # Normalize idea_text to JSON serializable structure
+            try:
+                ideas_json = json.dumps(idea_text, ensure_ascii=False)
+            except Exception:
+                # fallback for non-serializable input
+                if isinstance(idea_text, dict):
+                    ideas_json = json.dumps([idea_text], ensure_ascii=False)
+                else:
+                    ideas_json = json.dumps([], ensure_ascii=False)
 
             prompt = (
                 f"Compare the following ideas (JSON):\n{ideas_json}\n\n"
@@ -366,10 +463,30 @@ class DeepSearchTool:
                         block = block.split("\n", 1)[1] if "\n" in block else ""
                     raw = block.strip()
 
-            result = json.loads(raw)
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                # if the model returned a single object, wrap it
+                try:
+                    parsed_candidate = json.loads(f"[{raw}]")
+                    parsed = parsed_candidate
+                except Exception:
+                    # final fallback: build a conservative score list from idea_text
+                    if isinstance(idea_text, list):
+                        parsed = []
+                        for it in idea_text:
+                            if isinstance(it, dict):
+                                parsed.append({'idea': it.get('idea', str(it)), 'similarity_score': 0.0})
+                    elif isinstance(idea_text, dict):
+                        parsed = [{'idea': idea_text.get('idea', str(idea_text)), 'similarity_score': 0.0}]
+                    else:
+                        parsed = []
 
-            #print("LLM SCORE", result)
-            return result
+            # Ensure we return a list of dicts
+            if isinstance(parsed, dict):
+                parsed = [parsed]
+
+            return parsed
 
         def reranking(self, ideas) -> dict:
             """
@@ -387,7 +504,6 @@ class DeepSearchTool:
 
         
 
-    
     class DFS:
         def __init__(self,query,api_key, llm):
             self.query = query
@@ -440,7 +556,5 @@ class DeepSearchTool:
 
 
 
-
-
 search = DeepSearchTool()
-print(search.run(prompt = "Long Brazil Economy", number = 5))
+print(search.run(prompt = "Brazil Economy", number = 5))
