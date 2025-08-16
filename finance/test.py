@@ -180,7 +180,6 @@ def hybrid_rerank_run(llm_scores: list[dict], embedding_scores: list[dict], sort
         "Guidelines:\n"
         "- Prefer higher LLM similarity_score and higher embedding_similarity when aligned with the substantive rationale.\n"
         "- Remove the single lowest-ranked idea from the final output.\n"
-        "- If signals disagree, provide a balanced final ranking and include a brief reason per item that reflects underlying meaning.\n"
         "Return strictly valid JSON: a list of objects with fields: idea (str), final_score (0..1), reason (str)."
     )
 
@@ -263,7 +262,7 @@ def run(prompt: str):
         llm_score = get_llm_score(prompt, nextlevel)
         embedding_scores = add_embedding_scores(prompt, nextlevel)
         sorted_by_similarity = sorted(embedding_scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
-        final_ranking = hybrid_rerank_run(llm_score, embedding_scores, sorted_scores)
+        final_ranking = hybrid_rerank_run(llm_score, embedding_scores, sorted_by_similarity)
         # Only keep the last value
         if i == 2:
             final = final_ranking
