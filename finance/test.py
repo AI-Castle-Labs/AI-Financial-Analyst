@@ -138,13 +138,24 @@ def add_embedding_scores(query: str, ideas: list[dict]) -> list[dict]:
     query_embedding = get_embedding(query)
     results = []
     for item in ideas:
-        idea_text = f"{item.get('idea','')}: {item.get('idea_description','')}"
-        idea_embedding = get_embedding(idea_text)
-        sim = cosine_similarity(query_embedding, idea_embedding)
-        results.append({
-            'idea': item.get('idea',''),
-            'embedding_similarity': sim
-        })
+        if isinstance(item,dict):
+            idea_text = f"{item.get('idea','')}: {item.get('idea_description','')}"
+            idea_embedding = get_embedding(idea_text)
+            sim = cosine_similarity(query_embedding, idea_embedding)
+            results.append({
+                'idea': item.get('idea',''),
+                'embedding_similarity': sim
+            })
+        else:
+            for action in ideas.get('reranked_ideas', []):
+                next_action = action.get('next_action')
+                idea_embedding = get_embedding(str(next_action))
+                sim = cosine_similarity(query_embedding, idea_embedding)
+                results.append({
+                    'idea': str(next_action),
+                    'embedding_similarity': sim
+                })
+
     return results
 
 
@@ -241,33 +252,23 @@ def question_agent(payload):
 def run(prompt: str):
     """Main function to run the class"""
     scenarios, scores, sorted_scores = planner_agent(prompt)
-    print(scenarios)
     embedding_scores = add_embedding_scores(prompt, scenarios)
+    print(embedding_scores)
     final_ranking = hybrid_rerank_run(scores, embedding_scores, sorted_scores)
 
     
-    
-    
-    for i in range(1):
+    final = None
+    for i in range(3):
         nextlevel = question_agent(final_ranking)
-        print(nextlevel)
         llm_score = get_llm_score(prompt, nextlevel)
-        print(llm_score)
-        embedding_scores = add_embedding_scores(prompt,nextlevel)
-        
+        embedding_scores = add_embedding_scores(prompt, nextlevel)
+        sorted_by_similarity = sorted(embedding_scores, key=lambda x: x.get('similarity_score', 0), reverse=True)
+        final_ranking = hybrid_rerank_run(llm_score, embedding_scores, sorted_scores)
+        # Only keep the last value
+        if i == 2:
+            final = final_ranking
 
-        """
-        if  isinstance(scenarios,list):
-            scenarios = json.dumps(scenarios)
-        llm_score = get_llm_score(prompt,scenarios)
-        print(scenarios)
-        embedding_scores = add_embedding_scores(prompt,scenarios)
-        final_ranking = hybrid_rerank_run(llm_score,embedding_scores,sorted_scores = None)
-        
-        i+= 0
-
-        print("final ranking",final_ranking)
-        """
+    print("This is final", final)
 
     #Loop over n-2    
         #Re-ranking
