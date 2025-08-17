@@ -12,6 +12,7 @@ from state import AgentState
 import tweepy
 from fpdf import FPDF
 from extra_tools import chart_agent
+import json
 
 load_dotenv()
 
@@ -57,8 +58,8 @@ class DeepResearchAgent:
             {'role':'system','content' : system_macro_prompt},
             {'role':'user', 'content': f"Provide an macro investment pitch for {prompt}"}
         ])
-        # Store output in dedicated attribute
-        State.macro_analyst = result.pitch
+        # Store output in dedicated attribute (list form for AgentState)
+        State.macro_analyst_agent = [result.pitch]
         # Only update State.prompt if result.pitch is a string
         if isinstance(result.pitch, str):
             State.prompt = result.pitch
@@ -73,8 +74,8 @@ class DeepResearchAgent:
             {'role':'system','content' : system_sector_research_analyst},
             {'role':'user','content' : f"Provide sector research analysis for {prompt}"}
         ])
-        # Store output in dedicated attribute
-        State.sector_analyst = result.research
+        # Store output in dedicated attribute (list form)
+        State.sector_analyst_agent = [result.research]
         return State
 
     def central_bank_agent(self,State):
@@ -85,7 +86,8 @@ class DeepResearchAgent:
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide analysis as a central bank analyst for {prompt}"}
         ])
-        State.central_bank_analyst = result.research
+        # Store as list to satisfy AgentState typing
+        State.central_bank_agent = [result.research]
         return State
 
     def fx_research_agent(self, State, prompt = None):
@@ -96,7 +98,7 @@ class DeepResearchAgent:
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide FX research analysis on {prompt}"}
         ])
-        State.fx_research_agent = result.research
+        State.fx_research_agent = [result.research]
         return State
 
     def agent(self,State):
@@ -110,7 +112,7 @@ class DeepResearchAgent:
             {'role':'system', 'content': system_prompt},
             {'role':'user', 'content': f'Provide analysis based on {prompt}'}
         ])
-        State.agent = result.research
+        State.agent = [result.research]
         print("This is the state", State)
         return State
 
@@ -128,26 +130,77 @@ class DeepResearchAgent:
             {'role':'system','content':system_prompt},
             {'role': 'user', 'content': f'Provide analysis based on {prompt}'}
         ])
-        State.portfolio_manager = result.portfolio_summary
+        State.portfolio_manager_agent = [result.portfolio_summary]
         return State
-        
+
+    def _format_state_value(self, val):
+        """Normalize a State attribute into a printable string for the PDF without Python-style brackets.
+        - lists -> join items separated by double newline
+        - dicts -> pretty-printed JSON without surrounding brackets
+        - primitives -> str()
+        """
+        try:
+            if val is None:
+                return ""
+            # If this is already a list (e.g., [result.research]), join elements
+            if isinstance(val, list):
+                parts = []
+                for v in val:
+                    if isinstance(v, dict):
+                        parts.append(json.dumps(v, ensure_ascii=False, indent=2))
+                    else:
+                        parts.append(str(v))
+                # join without any bracket chars
+                return "\n\n".join(parts)
+            if isinstance(val, dict):
+                # Pretty print dict content
+                return json.dumps(val, ensure_ascii=False, indent=2)
+            return str(val)
+        except Exception:
+            return str(val)
+
     def create_pdf_report(self, results, filename="investment_report.pdf"):
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt="Agentic AI Research Report", ln=True, align='C')
-        pdf.ln(10)
-        for agent_name, result in results.items():
-            pdf.set_font("Arial", style='B', size=12)
-            pdf.cell(200, 10, txt=f"{agent_name}:", ln=True)
-            pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, txt=str(result))
-            pdf.ln(5)
+        pdf.set_auto_page_break(auto=True, margin=15)
+
+        # Title
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, txt="Agentic AI Research Report", ln=True, align='C')
+        pdf.ln(6)
+
+        # Render each agent section with bold heading and the content below
+        for agent_name, content in results.items():
+            # Heading (Investment Pitch should be bold and slightly larger)
+            if agent_name == 'Investment Pitch':
+                pdf.set_font("Arial", 'B', 15)
+            else:
+                pdf.set_font("Arial", 'B', 13)
+            pdf.cell(0, 8, txt=agent_name, ln=True)
+            pdf.ln(2)
+
+            # Content: content is already a formatted string from _format_state_value
+            pdf.set_font("Arial", '', 11)
+            for paragraph in str(content).split('\n\n'):
+                for line in paragraph.split('\n'):
+                    # Ensure we don't print literal list/dict brackets
+                    line = line.strip()
+                    if line.startswith('[') and line.endswith(']'):
+                        # remove surrounding brackets if any slipped through
+                        line = line[1:-1].strip()
+                    pdf.multi_cell(0, 7, txt=line)
+                pdf.ln(3)
+
+            # Separator
+            pdf.set_line_width(0.2)
+            pdf.set_draw_color(200, 200, 200)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(6)
+
         pdf.output(filename)
         print(f"PDF report saved as {filename}")
 
     def run(self, prompt):
-        
         workflow = StateGraph(AgentState)
         workflow.add_node("macro_analyst", self.macro_analyst_agent)
         workflow.add_node("sector_analyst", self.sector_analyst_agent)
@@ -166,20 +219,64 @@ class DeepResearchAgent:
         workflow.add_edge("portfolio_manager", END)
         # Compile and run the workflow
         app = workflow.compile()
-        for item in prompt:
-            print("This is item", item)
-       
+
         initial_state = AgentState(
             prompt = prompt
         )
         result = app.invoke(input = initial_state)
+
         # Collect results for PDF
         results = {}
-        if hasattr(result, 'macro_analyst'): results['Macro Analyst'] = getattr(result, 'macro_analyst')
-        if hasattr(result, 'sector_analyst'): results['Sector Analyst'] = getattr(result, 'sector_analyst')
-        if hasattr(result, 'central_bank_analyst'): results['Central Bank Analyst'] = getattr(result, 'central_bank_analyst')
-        if hasattr(result, 'fx_research_analyst'): results['FX Research Analyst'] = getattr(result, 'fx_research_analyst')
-        if hasattr(result, 'portfolio_manager'): results['Portfolio Manager'] = getattr(result, 'portfolio_manager')
+        # First, Investment Pitch (original prompt)
+        results['Investment Pitch'] = str(prompt)
+
+        # Known field name variants to pick from State (order preserved)
+        fields = [
+            ('macro_analyst', 'Macro Analyst'),
+            ('macro_analyst_agent', 'Macro Analyst'),
+            ('sector_analyst', 'Sector Analyst'),
+            ('sector_analyst_agent', 'Sector Analyst'),
+            ('central_bank_analyst', 'Central Bank Analyst'),
+            ('central_bank_agent', 'Central Bank Analyst'),
+            ('fx_research_analyst', 'FX Research Analyst'),
+            ('fx_research_agent', 'FX Research Analyst'),
+            ('agent', 'Agent'),
+            ('portfolio_manager', 'Portfolio Manager'),
+            ('portfolio_manager_agent', 'Portfolio Manager'),
+        ]
+
+        for attr, label in fields:
+            if hasattr(result, attr):
+                # Avoid overwriting Investment Pitch
+                if label == 'Macro Analyst' and 'Macro Analyst' in results:
+                    # append if already present
+                    existing = results.get(label, '')
+                    new = self._format_state_value(getattr(result, attr))
+                    results[label] = existing + "\n\n" + new if existing else new
+                else:
+                    results[label] = self._format_state_value(getattr(result, attr))
+
+        # Also try to capture any other research-like fields from the State dict
+        try:
+            state_dict = result.dict()
+        except Exception:
+            try:
+                state_dict = result.__dict__
+            except Exception:
+                state_dict = {}
+
+        for k, v in state_dict.items():
+            if k in [f[0] for f in fields]:
+                continue
+            if any(substr in k.lower() for substr in ['research', 'analysis', 'agent', 'analyst', 'portfolio', 'idea']):
+                label = k.replace('_', ' ').title()
+                if label not in results:
+                    results[label] = self._format_state_value(v)
+
+        if not results:
+            # Fallback: stringify the whole state
+            results['State'] = self._format_state_value(state_dict or result)
+
         self.create_pdf_report(results)
 
 

@@ -6,6 +6,11 @@ from openai import OpenAI
 import numpy as np
 import json
 
+# Add missing imports for agent functionality
+from langchain.agents import initialize_agent, AgentType
+# Define available_tools as an empty list or import your tools here
+available_tools = []
+
 load_dotenv()
 
 # Initialize OpenAI client once
@@ -246,6 +251,27 @@ def question_agent(payload):
 
     return output
 
+def node_search(self,query : str, idea_research : dict) -> dict:
+            """
+            Conducts a deep research on the node topic
+            """
+            prompt = f"""
+            You are an AI Assistant responsible for conducting and summarizing research on {query}
+            """
+            agent = initialize_agent(
+                tools = available_tools,
+                llm = self.llm,
+                agent = AgentType.OPENAI_FUNCTIONS,
+                verbose = True,
+                max_iteration = 2
+            )
+            result = agent.run("Conduct an indepth analysis of {idea_research} based on the tools provided")
+
+            final_result = self.llm.invoke([
+                {'role':'system', 'content': prompt},
+                {'role':'user','content' : f"Summarize result"}
+            ])
+            return final_result
 
 
 def run(prompt: str):

@@ -145,7 +145,32 @@ class DeepSearchTool:
                 final = scores if scores else []
 
         print("This is final", final)
-        research = self.DeepResearchAgent.run(prompt = final)
+        # Ensure we pass a string prompt to DeepResearchAgent.run / AgentState
+        if not final:
+            agent_input = prompt
+        elif isinstance(final, str):
+            agent_input = final
+        elif isinstance(final, dict):
+            # prefer a human-readable field
+            agent_input = final.get('idea') or final.get('reason') or json.dumps(final, ensure_ascii=False)
+        elif isinstance(final, list):
+            # try to build a concise string from the top-ranked items
+            try:
+                items = []
+                for it in final:
+                    if isinstance(it, dict):
+                        items.append(it.get('idea') or it.get('reason') or json.dumps(it, ensure_ascii=False))
+                    else:
+                        items.append(str(it))
+                agent_input = "; ".join([i for i in items if i])
+                if not agent_input:
+                    agent_input = prompt
+            except Exception:
+                agent_input = prompt
+        else:
+            agent_input = str(final)
+
+        research = self.DeepResearchAgent.run(prompt = agent_input)
         return research
         
 
@@ -557,4 +582,4 @@ class DeepSearchTool:
 
 
 search = DeepSearchTool()
-print(search.run(prompt = "Brazil Economy", number = 5))
+print(search.run(prompt = "Short Apple", number = 5))
