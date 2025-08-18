@@ -29,5 +29,3 @@ class AgentState(BaseModel):
 
 
     result : Optional[list[str]] = None
-
-    

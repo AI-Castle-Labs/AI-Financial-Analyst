@@ -144,7 +144,6 @@ class DeepSearchTool:
                 # fallback to initial scores (if any)
                 final = scores if scores else []
 
-        print("This is final", final)
         # Ensure we pass a string prompt to DeepResearchAgent.run / AgentState
         if not final:
             agent_input = prompt
