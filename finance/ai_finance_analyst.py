@@ -47,6 +47,15 @@ class DeepResearchAgent:
         self.llm = llm
         self.api_key = api_key
         self.report = {}
+    
+
+    def planner_agent(self,State):
+        llm = self.llm.with_structured_output(PlannerAgentSchema)
+        prompt = State.prompt
+        result = llm.invoke([
+            {'role':'system', 'content': plannerschema},
+            {'role':'user','content':f"Provide a plan for each agent"}
+        ])
 
 
 
@@ -90,7 +99,7 @@ class DeepResearchAgent:
         State.central_bank_agent = [result.research]
         return State
 
-    def fx_research_agent(self, State, prompt = None):
+    def fx_research_agent(self, State, prompt = None):      
         prompt = State.prompt
         llm = self.llm.with_structured_output(FXAgentSchema)
         system_prompt =  system_fx_research_prompt

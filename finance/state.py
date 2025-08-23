@@ -7,6 +7,9 @@ from langgraph.channels import LastValue
 
 class AgentState(BaseModel):
 
+    
+    title : str | None = None
+    
     macro_thesis: str | None  = None
     
     instructions: Optional[Dict[str, Any]] = None

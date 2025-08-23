@@ -581,4 +581,4 @@ class DeepSearchTool:
 
 
 search = DeepSearchTool()
-print(search.run(prompt = "Short Apple", number = 5))
+print(search.run(prompt = "Real Estate Market in Texas", number = 5))
