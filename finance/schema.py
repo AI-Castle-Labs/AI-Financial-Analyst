@@ -18,7 +18,6 @@ class Classification_outputSchema(BaseModel):
         description="The name of the data point for the respective source. Example for Fred Fed Funds Rate, output would be FEDFUNDS"
     )
 
-
 class MacroAnalystSchema(BaseModel):
     """Output Schema for Macro Analyst"""
 
@@ -150,6 +149,7 @@ class PlanningSchema(BaseModel):
 
 
 class SimilarityScoreSchema(BaseModel):
+    """Comparing how similar two or more ideas are"""
     idea: str = Field(..., description="The scenario name")
     similarity_score: float = Field(
         ..., ge=0.0, le=1.0, description="A float between 0 and 1 representing similarity"
@@ -161,4 +161,25 @@ class LLMScore(BaseModel):
 
     research_ideas: Dict[str, float] = Field(
         ..., description="The key consist of the idea name and value if the ranking"
+    )
+
+
+class PlannerAgentSchema(BaseModel):
+    """Planning agent responsible for planning research steps"""
+
+    title : str = Field(
+        description = "Title of the research report"
+    )
+    macro_agent : str = Field(
+        description = "Macro Research task for the given query"
+    )
+
+    sector_agent : str = Field(
+        description= "Sector Research task for the given query"
+    )
+    central_bank_agent :str = Field(
+        description= "Central Bank Research task for the given query"
+    )
+    fx_research_agent : str = Field(
+        description  = "FX Agent research task based on the given query"
     )

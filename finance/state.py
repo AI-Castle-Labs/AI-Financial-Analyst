@@ -15,6 +15,13 @@ class AgentState(BaseModel):
     instructions: Optional[Dict[str, Any]] = None
 
 
+    #Task for every agent
+    macro_agent_task : str = None
+    central_bank_agent_task : str = None
+    sector_analyst_agent_task : str = None
+    fx_research_agent_task : str = None
+    
+    
     #Response from every agent
 
     central_bank_agent : Optional[list[str]] = None

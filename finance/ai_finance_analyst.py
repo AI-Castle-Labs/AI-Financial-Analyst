@@ -4,7 +4,7 @@ from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.tools import StructuredTool
 from prompt import system_source_prompt,system_macro_prompt,system_sector_research_analyst,system_central_bank_prompt,system_fx_research_prompt,system_agent_prompt,system_portfolio_manager_prompt
-from schema import SonarInput,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema,FXAgentSchema,CentralBankSchema
+from schema import PlannerAgentSchema,SonarInput,MacroAnalystSchema,SectorAnalystSchema,PortfolioManagerSchema,GeneralAgentSchema,FXAgentSchema,CentralBankSchema
 #from tools import FRED_Chart
 import os
 from dotenv import load_dotenv
@@ -53,10 +53,13 @@ class DeepResearchAgent:
         llm = self.llm.with_structured_output(PlannerAgentSchema)
         prompt = State.prompt
         result = llm.invoke([
-            {'role':'system', 'content': plannerschema},
+            {'role':'system', 'content': prompt},
             {'role':'user','content':f"Provide a plan for each agent"}
         ])
-
+        State.macro_agent_task = result.macro_agent
+        State.sector_analyst_agent_task = result.sector_agent
+        State.central_bank_agent_task = result.central_bank_agent
+        State.fx_research_agent_task = result.fx_research_agent
 
 
 
