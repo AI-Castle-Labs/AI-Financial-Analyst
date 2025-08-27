@@ -50,22 +50,25 @@ class DeepResearchAgent:
     
 
     def planner_agent(self,State):
-        llm = self.llm.with_structured_output(PlannerAgentSchema)
+        llm = llm.with_structured_output(PlannerAgentSchema)
         prompt = State.prompt
         result = llm.invoke([
-            {'role':'system', 'content': prompt},
-            {'role':'user','content':f"Provide a plan for each agent"}
+            {'role':'system', 'content': State.prompt},
+            {'role':'user','content':f"Provide a plan for each agent based on {prompt}"}
         ])
+        print (result)
         State.macro_agent_task = result.macro_agent
         State.sector_analyst_agent_task = result.sector_agent
         State.central_bank_agent_task = result.central_bank_agent
         State.fx_research_agent_task = result.fx_research_agent
 
+        return State
+
 
 
     def macro_analyst_agent(self,State):
         llm = self.llm.with_structured_output(MacroAnalystSchema)
-        prompt = State.prompt
+        prompt = State.macro_agent_task
         result = llm.invoke([
             {'role':'system','content' : system_macro_prompt},
             {'role':'user', 'content': f"Provide an macro investment pitch for {prompt}"}
@@ -80,7 +83,7 @@ class DeepResearchAgent:
         return State
 
     def sector_analyst_agent(self,State):
-        prompt = State.prompt
+        prompt = State.sector_analyst_agent_task
         llm = self.llm.with_structured_output(SectorAnalystSchema)
         result = llm.invoke([
             {'role':'system','content' : system_sector_research_analyst},
@@ -93,7 +96,7 @@ class DeepResearchAgent:
     def central_bank_agent(self,State):
         llm = self.llm.with_structured_output(CentralBankSchema)
         system_prompt = system_central_bank_prompt
-        prompt = State.prompt
+        prompt = State.central_bank_agent_task
         result = llm.invoke([
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f"Provide analysis as a central bank analyst for {prompt}"}
@@ -103,7 +106,8 @@ class DeepResearchAgent:
         return State
 
     def fx_research_agent(self, State, prompt = None):      
-        prompt = State.prompt
+        prompt = State.fx_research_agent_task
+
         llm = self.llm.with_structured_output(FXAgentSchema)
         system_prompt =  system_fx_research_prompt
         result = llm.invoke([
