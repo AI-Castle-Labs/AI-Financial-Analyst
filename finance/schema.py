@@ -165,21 +165,11 @@ class LLMScore(BaseModel):
 
 
 class PlannerAgentSchema(BaseModel):
-    """Planning agent responsible for planning research steps"""
+    """Schema for planning agent output"""
+    title: str = Field(description="Title of the financial plan")
+    macro_agent: str = Field(description="Task description for macro analyst")
+    sector_agent: str = Field(description="Task description for sector analyst")
+    central_bank_agent: str = Field(description="Task description for central bank analyst")
+    fx_research_agent: str = Field(description="Task description for FX research analyst")
 
-    title : str = Field(
-        description = "Title of the research report"
-    )
-    macro_agent : str = Field(
-        description = "Macro Research task for the given query"
-    )
-
-    sector_agent : str = Field(
-        description= "Sector Research task for the given query"
-    )
-    central_bank_agent :str = Field(
-        description= "Central Bank Research task for the given query"
-    )
-    fx_research_agent : str = Field(
-        description  = "FX Agent research task based on the given query"
-    )
+# ...existing code...

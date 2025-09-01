@@ -50,13 +50,15 @@ class DeepResearchAgent:
     
 
     def planner_agent(self,State):
-        llm = llm.with_structured_output(PlannerAgentSchema)
+
+        planner_llm = self.llm.with_structured_output(PlannerAgentSchema)
         prompt = State.prompt
-        result = llm.invoke([
+        result = planner_llm.invoke([
             {'role':'system', 'content': State.prompt},
             {'role':'user','content':f"Provide a plan for each agent based on {prompt}"}
         ])
-        print (result)
+        print ("This is the result",result)
+        State.title = result.title
         State.macro_agent_task = result.macro_agent
         State.sector_analyst_agent_task = result.sector_agent
         State.central_bank_agent_task = result.central_bank_agent
@@ -134,11 +136,12 @@ class DeepResearchAgent:
     def portfolio_manager(self,State):
         prompt = State.prompt
         llm = self.llm.with_structured_output(PortfolioManagerSchema)
+        # Use correct state attribute names (those ending with _agent)
         system_prompt = system_portfolio_manager_prompt.format(
-            macro_agent = getattr(State, 'macro_analyst', None),
-            sector_agent = getattr(State, 'sector_analyst', None),
-            fx_agent = getattr(State, 'fx_research_analyst', None),
-            central_bank_agent = getattr(State, 'central_bank_analyst', None),
+            macro_agent = getattr(State, 'macro_analyst_agent', None),
+            sector_agent = getattr(State, 'sector_analyst_agent', None),
+            fx_agent = getattr(State, 'fx_research_agent', None),
+            central_bank_agent = getattr(State, 'central_bank_agent', None),
             agent = getattr(State, 'agent', None)
         )
         result = llm.invoke([
@@ -181,7 +184,7 @@ class DeepResearchAgent:
 
         # Title
         pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, txt="Agentic AI Research Report", ln=True, align='C')
+        pdf.cell(0, 10, txt=results.get('Investment Pitch', 'No Title'), ln=True, align='C')
         pdf.ln(6)
 
         # List of agent fields to include in the PDF, in order
@@ -218,20 +221,23 @@ class DeepResearchAgent:
 
     def run(self, prompt):
         workflow = StateGraph(AgentState)
+
+        workflow.add_node("planner",self.planner_agent)
         workflow.add_node("macro_analyst", self.macro_analyst_agent)
         workflow.add_node("sector_analyst", self.sector_analyst_agent)
         workflow.add_node("central_bank_analyst", self.central_bank_agent)
         workflow.add_node("fx_research_analyst", self.fx_research_agent)
         workflow.add_node("portfolio_manager", self.portfolio_manager)
-        workflow.add_node("agent", self.agent)
+        # Node name 'agent' conflicts with state key 'agent'; use different node id
+        workflow.add_node("general_agent", self.agent)
         # Edges
-        workflow.add_edge(START, "macro_analyst")
+        workflow.add_edge(START, "planner")
+        workflow.add_edge("planner","macro_analyst")
         workflow.add_edge("macro_analyst","sector_analyst")
         workflow.add_edge("sector_analyst", "central_bank_analyst")
         workflow.add_edge("central_bank_analyst", "fx_research_analyst")
-        workflow.add_edge("fx_research_analyst", "agent")
-        workflow.add_edge("agent","portfolio_manager")
-
+        workflow.add_edge("fx_research_analyst", "general_agent")
+        workflow.add_edge("general_agent","portfolio_manager")
         workflow.add_edge("portfolio_manager", END)
         # Compile and run the workflow
         app = workflow.compile()
@@ -244,7 +250,7 @@ class DeepResearchAgent:
         # Collect results for PDF
         results = {}
         # First, Investment Pitch (original prompt)
-        results['Investment Pitch'] = str(prompt)
+        results['Investment Pitch'] = result['title']
 
         # Known field name variants to pick from State (order preserved)
         fields = [
@@ -256,7 +262,7 @@ class DeepResearchAgent:
             ('central_bank_agent', 'Central Bank Analyst'),
             ('fx_research_analyst', 'FX Research Analyst'),
             ('fx_research_agent', 'FX Research Analyst'),
-            ('agent', 'Agent'),
+            ('agent', 'General Agent'),
             ('portfolio_manager', 'Portfolio Manager'),
             ('portfolio_manager_agent', 'Portfolio Manager'),
         ]
