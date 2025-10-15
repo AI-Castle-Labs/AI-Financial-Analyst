@@ -33,9 +33,9 @@ text_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap = 50
 )
 
-api_key = "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"
+api_key = "YOUR-API-KEY"
 qdrant_url="https://6629bf04-24f3-4136-af1f-86fcacc5db74.eu-west-2-0.aws.cloud.qdrant.io:6333"
-qdrant_api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.hlNhEkXzv5RrfhdaVKadeG1LUkyxP-lnLAwQ4yYEnM4"
+qdrant_api_key="YOUR-QDRANT-API-KEY"
 
 
 def summarizer(conversation):
