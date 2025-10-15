@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-api_key = "llx-nHy5GiC5gLDi1bdQpgKrsjteSq78bVfPaDe3DDx6Sk5oVeD1"
+api_key = "YOUR-API-KEY"
 
 
 
